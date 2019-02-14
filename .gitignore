@@ -1,0 +1,7 @@
+.vscode/
+bin/
+data/
+config/
+hipparcos/
+__pycache__/
+*.o
