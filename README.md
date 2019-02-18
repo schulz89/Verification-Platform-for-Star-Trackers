@@ -32,6 +32,7 @@ Then, running the tests can be done with:
 * Boost 1.66.0
 * SystemC 2.3.2
 * UVM-SystemC 1.0b1
+* GHDL (>= 0.35)
 * Python 3.7.2
 * NumPy  1.15.1 (for Python 3)
 * Matplotlib 2.2.3 (for Python 3)
