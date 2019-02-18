@@ -1,4 +1,4 @@
-# Verification Platform for Star Tracker Software
+# Verification Platform for Star Trackers
 
 This is a verification platform for testing star tracker algorithms, based on UVM-SystemC.  
 All the code is under development and should be treated as alpha version.
