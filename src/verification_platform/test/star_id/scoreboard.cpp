@@ -26,7 +26,7 @@ scoreboard_star_id::scoreboard_star_id( uvm_component_name name )
     // cout << sc_time_stamp() << ":scoreboard constructor " << name << endl;
     // cout << std::fixed << std::setprecision( 4 );
 
-    *ofs << "%" << "Correct" << "\t" << "Identified" << "\t" << "Total" << endl;
+    *ofs << "%" << "Correct" << "\t" << "Identified" << "\t" << "Total" << "\t" << "Time (s)" << endl;
 
 }
 
@@ -34,7 +34,7 @@ void scoreboard_star_id::compare_data ()
 {// Compares input with output data. Called automatically.
     acc.compare_data(sky_in,sky_out);
 
-    *ofs << acc.correct << "\t" << acc.identified << "\t" << acc.total << endl;
+    *ofs << acc.correct << "\t" << acc.identified << "\t" << acc.total << "\t" << acc.time<< endl;
 
     // namedWindow("Image", CV_WINDOW_NORMAL);
     // setWindowProperty("Image", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);

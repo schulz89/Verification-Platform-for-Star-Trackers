@@ -57,6 +57,7 @@ public:
     int correct;
     int identified;
     int total;
+    double time;
 
     int identified_acc;
     int total_acc;

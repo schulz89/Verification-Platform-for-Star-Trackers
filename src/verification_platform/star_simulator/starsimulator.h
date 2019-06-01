@@ -19,6 +19,7 @@
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <math.h>
 #include <limits>
 #include <algorithm>
 #include <random>
@@ -56,6 +57,7 @@ private:
     void to_pixel_coordinates (std::vector<DB> &star_list);
     std::vector<DB> relevant_fov(std::vector<DB> &lf_list);
     boost::qvm::vec<double,3> random_unit_vector ();
+    double random_angle ();
     double awgn(double standard_deviation);
     DB fake_star();
 

@@ -37,5 +37,6 @@ grid_t = {
     "REFERENCE_BIN" : 1,
     "BINARY"        : 2,
     "BINARY_INDEX"  : 3,
-    "K"             : 4
+    "K"             : 4,
+    "TREE"          : 5
 }

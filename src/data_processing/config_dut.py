@@ -22,7 +22,8 @@ from definitions import *
 @dataclass
 class ConfigDut:
     dut_name : str = "STAR_TRACKER"
-
+    dut_identifier : str = "Generic Star Tracker"
+    
     # ==========================================================================
     # Configuration parameters
     # ==========================================================================

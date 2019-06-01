@@ -90,7 +90,7 @@ int main (/*int argc, char **argv*/)
 
     fs << "index_filename" << index_filename;
     create_index(index_filename,rstars,fs);
-//    fs.release();
+    fs.release();
     return 0;
 }
 
@@ -145,7 +145,7 @@ vector<db> initialize_database(catalog_parameters &cp)
             data.Proxy   = line.substr(15,1).compare(" ") ? 1:0;
             sstr = line.substr(41,5);
             if (!sstr.compare("     ")){
-                cerr << "Warning: Empty Vmag (HIP=" << HIP << ")" << endl;
+	        // cerr << "Warning: Empty Vmag (HIP=" << HIP << ")" << endl;
                 continue;
             }
             data.Vmag    = stod(sstr);
@@ -424,7 +424,7 @@ void create_ref(string &ref_db_filename, vector<db> &stars, FileStorage &fs)
     fs << "ref_db_cols" << cols;
     FILE *fp;
     fp = fopen(ref_db_filename.data(), "w");
-    fwrite(ref_db,sizeof(double),sizeof(ref_db),fp);
+    fwrite(ref_db,1,sizeof(ref_db),fp);
     fclose(fp);
 }
 
@@ -532,6 +532,6 @@ void create_bin(string &bin_db_filename, vector<db> &stars, grid_parameters &gp,
     fs << "bin_db_cols" << (int)cols;
     FILE *fp;
     fp = fopen(bin_db_filename.data(), "w");
-    fwrite(bin_db,sizeof(unsigned long),sizeof(bin_db),fp);
+    fwrite(bin_db,1,sizeof(bin_db),fp);
     fclose(fp);
 }

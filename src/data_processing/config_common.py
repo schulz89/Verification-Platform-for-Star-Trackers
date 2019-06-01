@@ -21,19 +21,25 @@ from dataclasses import dataclass
 @dataclass
 class ConfigCommon:
     test_name        : str = "STAR_TRACKER"
+    test_identifier  : str = "Generic Test"
+    x_axis_name      : str = "x"
+    y_axis_name      : str = "y"
     output_directory : str = "data"
     output_filename  : str = "output.csv"
+    start            : int = 0
+    end              : int = 2
+    steps            : int = end - start + 1
     n_tests          : int = 1000
 
     # ==========================================================================
     # Configuration parameters
     # ==========================================================================
     # Virtual camera optical parameters
-    op_resolution   :tuple = (800, 600)       # pixels
-    op_vertical_fov :int   = 8                # degrees
+    op_resolution   :tuple = (800, 600)         # pixels
+    op_vertical_fov :int   = 8                  # degrees
     op_pixel_size   :tuple = (2.8e-6, 2.8e-6) # meters
-    op_max_mag      :int   = 6                # mag
-    op_dist_coeffs  :tuple = (0, 0, 0, 0, 0)  # distortion coefficients
+    op_max_mag      :int   = 6                  # mag
+    op_dist_coeffs  :tuple = (0, 0, 0, 0, 0)    # distortion coefficients
 
     # Simulator parameters
     sp_psf_B              :float = 0
@@ -91,8 +97,8 @@ class ConfigCommon:
         fs.write("sp_mag_std_dev", self.sp_mag_std_dev)
         fs.write("sp_background_std_dev", self.sp_background_std_dev)
         fs.write("sp_background_dc", self.sp_background_dc)
-        fs.write("sp_focus_std_dev", self.sp_focus_std_dev)
-        fs.write("sp_focus_dc", self.sp_focus_dc)
+        fs.write("sp_focus_std_dev", self.sp_focus_std_dev * 1e-3)
+        fs.write("sp_focus_dc", self.sp_focus_dc * 1e-3)
         fs.write("sp_false_stars", self.sp_false_stars)
         fs.write("sp_generate_image", self.sp_generate_image)
 

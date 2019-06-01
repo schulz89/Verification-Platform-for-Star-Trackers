@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S python3 -i
 
 # Copyright 2019 Victor Hugo Schulz
 
@@ -19,32 +19,18 @@ sys.path.append("src/data_processing")
 
 from src.data_processing.data_processing import *
 
-star_id_histogram_run()
-# star_tracker_position_run()
-# star_tracker_magnitude_run()
-# star_tracker_false_stars_run()
-# star_tracker_focus_std_run()
-# star_tracker_focus_dc_run()
-# star_tracker_grid_size_run()
-# star_tracker_position_triple_run()
-# star_tracker_magnitude_triple_run()
-# star_tracker_false_stars_triple_run()
-# star_tracker_focus_std_triple_run()
-# star_tracker_focus_dc_triple_run()
-# star_tracker_grid_size_triple_run()
+def tests_batch():
+    config_common = ConfigCommon()
+    config_dut_list = [ConfigDut(gp_alg_variation = "REFERENCE", dut_identifier="Reference"),
+                       ConfigDut(gp_alg_variation = "BINARY", gp_nn_error_angle=0.0005, dut_identifier="Modified e=0.5mrad"),
+                       ConfigDut(gp_alg_variation = "BINARY", gp_nn_error_angle=0.0010, dut_identifier="Modified e=1.0mrad")]
+    test_list = [TestStarIdHistogram,
+                 TestStarTrackerPosition,
+                 TestStarTrackerMagnitude,
+                 TestStarTrackerFalseStars,
+                 TestStarTrackerGridSize,
+                 TestStarTrackerFocusDC]
+    for test in test_list:
+        test(config_common, config_dut_list)
 
-star_id_histogram_plot()
-# star_tracker_position_plot()
-# star_tracker_magnitude_plot()
-# star_tracker_false_stars_plot()
-# star_tracker_focus_std_plot()
-# star_tracker_focus_dc_plot()
-# star_tracker_grid_size_plot()
-# star_tracker_position_triple_plot()
-# star_tracker_magnitude_triple_plot()
-# star_tracker_false_stars_triple_plot()
-# star_tracker_focus_std_triple_plot()
-# star_tracker_focus_dc_triple_plot()
-# star_tracker_grid_size_triple_plot()
-
-# attitude_error_run()
+tests_batch()

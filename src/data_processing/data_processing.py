@@ -17,508 +17,188 @@
 import os, subprocess, csv
 import numpy as np
 import matplotlib.pyplot as plt
+import copy
 from config_common import ConfigCommon
 from config_dut import ConfigDut
-from definitions import test_t, dut_t
+from definitions import test_t, dut_t, grid_t
 
-class Test:    
-    def __init__(self, test_config):
-        self.test_sel = test_t[test_config.test_name]
-        self.data_filename = test_config.output_filename
-        self.test_config = test_config
+class SingleTest:  # Base class
+    def __init__(self, common = ConfigCommon(), dut_list = [ConfigDut()]):
         os.makedirs("config", exist_ok=True)
-        test_config.generate_yml("config/common.yml")
-
-    def dut(self, dut_config):
-        self.dut_sel  = dut_t[dut_config.dut_name]
-        self.dut_config = dut_config
-        self.dut_config.generate_yml("config/dut.yml")
+        self.dut_list = copy.deepcopy(dut_list)
+        self.common = copy.deepcopy(common)
+        for dut in self.dut_list:
+            self.dut = dut
+            self.parameters()
+            if not self.exists(dut):
+                self.configure(self.dut)
+                self.run(self.dut)
+                self.save(self.dut)
+        self.plot()
+    def parameters (self):
+        pass
+    def delta_update(self, value):
+        pass
+    def exists(self,dut_config):
+        directory_name = "data/" + self.common.test_identifier
+        filename = directory_name + "/" + dut_config.dut_identifier + ".npy"
+        return os.path.isfile(filename) # If the file already exists, skip test
+    def configure(self,dut_config):
+        self.common.generate_yml("config/common.yml")
+        dut_config.generate_yml("config/dut.yml")
         subprocess.run(["bin/grid_database"])
-    
-    def run(self):
-        if subprocess.call(["bin/verification_platform", str(self.dut_sel), str(self.test_sel)]) :
+    def run(self,dut_config):
+        self.test_sel = test_t[self.common.test_name]
+        self.dut_sel  = dut_t[dut_config.dut_name]
+        #if subprocess.call(["bin/verification_platform", str(self.dut_sel), str(self.test_sel)]) :
+        if subprocess.call(["bin/verification_platform", str(self.dut_sel), str(self.test_sel)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) :
             exit()
+        self.data = np.genfromtxt("data/" + self.common.output_filename, comments="%", delimiter="\t")
+        # print("Data size:" + repr(np.size(self.data,axis=0)) + "x" + repr(np.size(self.data,axis=1)))
+    def save(self,dut_config):
+        directory_name = "data/" + self.common.test_identifier
+        filename_base = directory_name + "/" + dut_config.dut_identifier
+        os.makedirs(directory_name, exist_ok=True)
+        np.save(filename_base + ".npy", self.data)    
+    def plot(self):
+        for dut in self.dut_list:
+            directory_name = "data/" + self.common.test_identifier
+            filename_base = directory_name + "/" + dut.dut_identifier
+            data = np.load(filename_base + ".npy")
+            ratio = data[:,0] / data[:,2]
+            plt.hist(ratio, bins = 20)
+            # plt.hist(ratio, bins = 20, facecolor = "dimgrey")
+            axes = plt.gca()
+            axes.set_xlim([0,1])
+            plt.xlabel(self.common.x_axis_name)
+            plt.ylabel(self.common.y_axis_name)
+            plt.grid()
+            plt.savefig(filename_base + ".pdf")
+            # plt.show()
+            plt.clf()
 
-    def process(self):
-        self.data = np.genfromtxt("data/" + self.data_filename, comments="%", delimiter="\t")
-        print("Data size:" + repr(np.size(self.data,axis=0)) + "x" + repr(np.size(self.data,axis=1)))
-
-class TestStarTracker(Test):
-    def run(self,target,start,end,ntests):
-        self.x = np.linspace(start,end,ntests)
-        self.y = np.empty(ntests)
-        for i in range(0,ntests) :
-            target(self.x[i])
-            super().run()
-            super().process()
+class MultipleTests(SingleTest): # Base class
+    def exists(self,dut_config):
+        directory_name = "data/" + self.common.test_identifier
+        filename_x = directory_name + "/" + dut_config.dut_identifier + "_x.npy"
+        filename_y = directory_name + "/" + dut_config.dut_identifier + "_x.npy"
+        return os.path.isfile(filename_x) and os.path.isfile(filename_y) # If the files already exists, skip test
+    def run(self,dut_config):
+        start = self.common.start
+        end = self.common.end
+        steps = self.common.steps
+        self.x = np.linspace(start,end,steps)
+        self.y = np.empty(steps)
+        for i in range(0,steps) :
+            self.delta_update(self.x[i])
+            super().run(dut_config)
             total = np.size(self.data,axis=0)
             acc = np.sum(self.data,axis=0)
             self.y[i] = acc[4]/total
+    def save(self,dut_config):
+        directory_name = "data/" + self.common.test_identifier
+        filename_base = directory_name + "/" + dut_config.dut_identifier
+        os.makedirs(directory_name, exist_ok=True)
+        np.save(filename_base + "_x.npy", self.x)
+        np.save(filename_base + "_y.npy", self.y)
+    def plot(self):
+        directory_name = "data/" + self.common.test_identifier
+        for dut in self.dut_list:
+            filename_base = directory_name + "/" + dut.dut_identifier
+            x = np.load(filename_base + "_x.npy")
+            y = np.load(filename_base + "_y.npy")
+            plt.plot(x, y, label=dut.dut_identifier)
+        plt.xlabel(self.common.x_axis_name)
+        plt.ylabel(self.common.y_axis_name)
+        plt.grid()
+        plt.legend()
+        plt.savefig(directory_name + "/" + self.common.test_identifier + ".pdf")
+        # plt.show()
+        plt.clf()
 
-    def focus_std(self,value):
-        self.test_config.sp_focus_std_dev = value
-        self.test_config.generate_yml("config/common.yml")
+class TestStarIdHistogram(SingleTest):
+    def parameters(self):
+        self.dut.dut_name = "STAR_ID_GRID"
+        self.common.test_name = "STAR_ID"
+        self.common.test_identifier = "Star ID Histogram"
+        self.common.sp_generate_image = 0
+        self.common.n_tests = 10000
+        self.common.x_axis_name = "Fraction of correctly identified stars"
+        self.common.y_axis_name = "Tests"
 
-    def focus_dc(self,value):
-        self.test_config.sp_focus_dc = value
-        self.test_config.generate_yml("config/common.yml")
+class TestStarTrackerPosition(MultipleTests):
+    def parameters(self):
+        self.common.test_identifier = "Star Tracker Position"
+        self.common.start = 0 # pixels
+        self.common.end = 2   # pixels
+        self.common.steps = 100
+        self.common.x_axis_name = "Additive Gaussian noise on position (pixel)"
+        self.common.y_axis_name = "Ratio of correct attitude determination"
+    def delta_update(self,value):
+        self.common.sp_position_std_dev = value
+        self.common.generate_yml("config/common.yml")
 
-    def position(self,value):
-        self.test_config.sp_position_std_dev = value
-        self.test_config.generate_yml("config/common.yml")
+class TestStarTrackerMagnitude(MultipleTests):
+    def parameters(self):
+        self.common.test_identifier = "Star Tracker Magnitude"
+        self.common.start = 0 # mag
+        self.common.end   = 2 # mag
+        self.common.steps = 100
+        self.common.x_axis_name = "Additive Gaussian noise on magnitude (mag)"
+        self.common.y_axis_name = "Ratio of correct attitude determination"
+    def delta_update(self,value):
+        self.common.sp_mag_std_dev = value
+        self.common.generate_yml("config/common.yml")
 
-    def false_stars(self,value):
-        self.test_config.sp_false_stars = value
-        self.test_config.generate_yml("config/common.yml")
+class TestStarTrackerFalseStars(MultipleTests):
+    def parameters(self):
+        self.common.test_identifier = "Star Tracker False Stars"
+        self.common.start = 0 # stars
+        self.common.end   = 5 # stars
+        self.common.steps = self.common.end - self.common.start + 1
+        self.common.x_axis_name = "Number of false stars"
+        self.common.y_axis_name = "Ratio of correct attitude determination"
+    def delta_update(self,value):
+        self.common.sp_false_stars = value
+        self.common.generate_yml("config/common.yml")
 
-    def magnitude(self,value):
-        self.test_config.sp_mag_std_dev = value
-        self.test_config.generate_yml("config/common.yml")
-    
-    def grid_size(self,value):
-        self.dut_config.gp_g = value
-        self.dut_config.generate_yml("config/dut.yml")
+class TestStarTrackerGridSize(MultipleTests):
+    def parameters(self):
+        self.common.test_identifier = "Star Tracker Grid Size"
+        self.common.start = 1
+        self.common.end   = 64
+        self.common.steps = self.common.end - self.common.start + 1
+        self.common.x_axis_name = "Grid size g"
+        self.common.y_axis_name = "Ratio of correct attitude determination"
+    def delta_update(self,value):
+        self.dut.gp_g = value
+        self.dut.generate_yml("config/dut.yml")
         subprocess.run(["bin/grid_database"])
 
-
-# ==========================================================================
-
-def attitude_error_run():
-    ntests = 10000
-    test_config = ConfigCommon(test_name = "ATTITUDE", sp_generate_image = 0, output_filename = "test_attitude.csv", n_tests = ntests)
-    dut_config  = ConfigDut(dut_name= "ATTITUDE_DETERMINATION")
-    test = Test(test_config)
-    test.dut(dut_config)
-    test.run()
-
-def star_id_histogram_run():
-    ntests = 10000
-    test_config = ConfigCommon(test_name = "STAR_ID", sp_generate_image = 0, output_filename = "test_star_id_grid.csv", op_vertical_fov = 15, n_tests = ntests)
-    dut_config  = ConfigDut(dut_name= "STAR_ID_GRID", gp_alg_variation = "BINARY")
-    test = Test(test_config)
-    test.dut(dut_config)
-    test.run()
-    test.process()
-    np.save("data/star_id_histogram.npy", test.data)
-    
-def star_id_histogram_plot():
-    data = np.load("data/star_id_histogram.npy")
-    ratio = data[:,0] / data[:,2]
-    
-    plt.hist(ratio, bins = 20)
-    # plt.hist(ratio, bins = 20, facecolor = "dimgrey")
-    axes = plt.gca()
-    axes.set_xlim([0,1])
-    plt.xlabel("Fraction of correctly identified stars")
-    plt.ylabel("Tests")
-    plt.grid()
-    # plt.title("Histogram of fraction of correctly identified stars in FOV")
-    plt.savefig("data/star_id_histogram.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_position_run():
-    start  = 0 # pixels
-    end    = 2 # pixels
-    ntests = 100
-
-    test = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test.run(test.position, start, end, ntests)
-    np.save("data/star_tracker_position_x.npy", test.x)
-    np.save("data/star_tracker_position_y.npy", test.y)
-
-def star_tracker_position_plot():
-    x = np.load("data/star_tracker_position_x.npy")
-    y = np.load("data/star_tracker_position_y.npy")
-    
-    plt.plot(x, y)
-    plt.xlabel("Additive Gaussian noise on position (pixel)")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.grid()
-    plt.savefig("data/star_tracker_position.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_magnitude_run():
-    start  = 0 # mag
-    end    = 2 # mag
-    ntests = 100
-
-    test = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test.run(test.magnitude, start, end, ntests)
-    np.save("data/star_tracker_magnitude_x.npy", test.x)
-    np.save("data/star_tracker_magnitude_y.npy", test.y)
-
-def star_tracker_magnitude_plot():
-    x = np.load("data/star_tracker_magnitude_x.npy")
-    y = np.load("data/star_tracker_magnitude_y.npy")
-    
-    plt.plot(x, y)
-    plt.xlabel("Additive Gaussian noise on magnitude (mag)")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.grid()
-    plt.savefig("data/star_tracker_magnitude.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_false_stars_run():
-    start  = 0 # stars
-    end    = 5 # stars
-    ntests = end - start + 1
-
-    test = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test.run(test.false_stars, start, end, ntests)
-    np.save("data/star_tracker_false_stars_x.npy", test.x)
-    np.save("data/star_tracker_false_stars_y.npy", test.y)
-
-def star_tracker_false_stars_plot():
-    x = np.load("data/star_tracker_false_stars_x.npy")
-    y = np.load("data/star_tracker_false_stars_y.npy")
-    
-    plt.plot(x, y)
-    plt.xlabel("Number of false stars")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.grid()
-    plt.savefig("data/star_tracker_false_stars.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_focus_std_run():
-    start  = 0    # meters
-    end    = 2e-3 # meters
-    ntests = 100
-
-    test = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test.run(test.focus_std, start, end, ntests)
-    np.save("data/star_tracker_focus_std_x.npy", test.x)
-    np.save("data/star_tracker_focus_std_y.npy", test.y)
-
-def star_tracker_focus_std_plot():
-    x = np.load("data/star_tracker_focus_std_x.npy")
-    y = np.load("data/star_tracker_focus_std_y.npy")
-    
-    plt.plot(x * 1e3 ,y)
-    plt.xlabel("Additive Gaussian noise on focal length (mm)")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.grid()
-    plt.savefig("data/star_tracker_focus_std.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_focus_dc_run():
-    start  = -2e-3    # meters
-    end    = 2e-3 # meters
-    ntests = 100
-
-    test = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test.run(test.focus_dc, start, end, ntests)
-    np.save("data/star_tracker_focus_dc_x.npy", test.x)
-    np.save("data/star_tracker_focus_dc_y.npy", test.y)
-
-def star_tracker_focus_dc_plot():
-    x = np.load("data/star_tracker_focus_dc_x.npy")
-    y = np.load("data/star_tracker_focus_dc_y.npy")
-    
-    plt.plot(x * 1e3 ,y)
-    plt.xlabel("Change in focal length (mm)")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.grid()
-    plt.savefig("data/star_tracker_focus_dc.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_grid_size_run():
-    start  = 1
-    end    = 64
-    ntests = end - start + 1
-
-    test = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY_INDEX") )
-    test.run(test.grid_size, start, end, ntests)
-    np.save("data/star_tracker_grid_size_x.npy", test.x)
-    np.save("data/star_tracker_grid_size_y.npy", test.y)
-
-def star_tracker_grid_size_plot():
-    x = np.load("data/star_tracker_grid_size_x.npy")
-    y = np.load("data/star_tracker_grid_size_y.npy")
-    
-    plt.plot(x, y)
-    plt.xlabel("Grid size g")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.grid()
-    plt.savefig("data/star_tracker_grid_size.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_position_triple_run():
-    start  = 0 # pixels
-    end    = 2 # pixels
-    ntests = 100
-
-    test_ref = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_ref.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test_ref.run(test_ref.position, start, end, ntests)
-    np.save("data/star_tracker_position_triple_ref_x.npy", test_ref.x)
-    np.save("data/star_tracker_position_triple_ref_y.npy", test_ref.y)
-
-    test_mod0 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_mod0.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 0.5e-3) )
-    test_mod0.run(test_mod0.position, start, end, ntests)
-    np.save("data/star_tracker_position_triple_mod0_x.npy", test_mod0.x)
-    np.save("data/star_tracker_position_triple_mod0_y.npy", test_mod0.y)
-
-    test_mod1 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_mod1.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 1.0e-3) )
-    test_mod1.run(test_mod1.position, start, end, ntests)
-    np.save("data/star_tracker_position_triple_mod1_x.npy", test_mod1.x)
-    np.save("data/star_tracker_position_triple_mod1_y.npy", test_mod1.y)
-
-def star_tracker_position_triple_plot():
-    ref_x = np.load("data/star_tracker_position_triple_ref_x.npy")
-    ref_y = np.load("data/star_tracker_position_triple_ref_y.npy")
-    mod0_x = np.load("data/star_tracker_position_triple_mod0_x.npy")
-    mod0_y = np.load("data/star_tracker_position_triple_mod0_y.npy")
-    mod1_x = np.load("data/star_tracker_position_triple_mod1_x.npy")
-    mod1_y = np.load("data/star_tracker_position_triple_mod1_y.npy")
-
-    plt.plot(ref_x, ref_y,  label="Reference")
-    plt.plot(mod0_x, mod0_y, label="Modified (e=0.5mrad)")
-    plt.plot(mod1_x, mod1_y, label="Modified (e=1.0mrad)")
-    plt.xlabel("Additive Gaussian noise on position (pixel)")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.legend()
-    plt.grid()
-    plt.savefig("data/star_tracker_position_triple.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_magnitude_triple_run():
-    start  = 0 # mag
-    end    = 2 # mag
-    ntests = 100
-
-    test_ref = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_ref.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test_ref.run(test_ref.magnitude, start, end, ntests)
-
-    test_mod0 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_mod0.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 0.5e-3) )
-    test_mod0.run(test_mod0.magnitude, start, end, ntests)
-
-    test_mod1 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_mod1.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 1.0e-3) )
-    test_mod1.run(test_mod1.magnitude, start, end, ntests)
-    
-    np.save("data/star_tracker_magnitude_triple_ref_x.npy", test_ref.x)
-    np.save("data/star_tracker_magnitude_triple_ref_y.npy", test_ref.y)
-    np.save("data/star_tracker_magnitude_triple_mod0_x.npy", test_mod0.x)
-    np.save("data/star_tracker_magnitude_triple_mod0_y.npy", test_mod0.y)
-    np.save("data/star_tracker_magnitude_triple_mod1_x.npy", test_mod1.x)
-    np.save("data/star_tracker_magnitude_triple_mod1_y.npy", test_mod1.y)
-    
-def star_tracker_magnitude_triple_plot():
-    ref_x = np.load("data/star_tracker_magnitude_triple_ref_x.npy")
-    ref_y = np.load("data/star_tracker_magnitude_triple_ref_y.npy")
-    mod0_x = np.load("data/star_tracker_magnitude_triple_mod0_x.npy")
-    mod0_y = np.load("data/star_tracker_magnitude_triple_mod0_y.npy")
-    mod1_x = np.load("data/star_tracker_magnitude_triple_mod1_x.npy")
-    mod1_y = np.load("data/star_tracker_magnitude_triple_mod1_y.npy")
-    
-    plt.plot(ref_x, ref_y,  label="Reference")
-    plt.plot(mod0_x, mod0_y, label="Modified (e=0.5mrad)")
-    plt.plot(mod1_x, mod1_y, label="Modified (e=1.0mrad)")
-    plt.xlabel("Additive Gaussian noise on magnitude (mag)")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.legend()
-    plt.grid()
-    plt.savefig("data/star_tracker_magnitude_triple.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_false_stars_triple_run():
-    start  = 0 # stars
-    end    = 5 # stars
-    ntests = end - start + 1
-
-    test_ref = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_ref.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test_ref.run(test_ref.false_stars, start, end, ntests)
-
-    test_mod0 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_mod0.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 0.5e-3) )
-    test_mod0.run(test_mod0.false_stars, start, end, ntests)
-
-    test_mod1 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_mod1.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 1.0e-3) )
-    test_mod1.run(test_mod1.false_stars, start, end, ntests)
-    
-    np.save("data/star_tracker_false_stars_triple_ref_x.npy", test_ref.x)
-    np.save("data/star_tracker_false_stars_triple_ref_y.npy", test_ref.y)
-    np.save("data/star_tracker_false_stars_triple_mod0_x.npy", test_mod0.x)
-    np.save("data/star_tracker_false_stars_triple_mod0_y.npy", test_mod0.y)
-    np.save("data/star_tracker_false_stars_triple_mod1_x.npy", test_mod1.x)
-    np.save("data/star_tracker_false_stars_triple_mod1_y.npy", test_mod1.y)
-
-def star_tracker_false_stars_triple_plot():
-    ref_x = np.load("data/star_tracker_false_stars_triple_ref_x.npy")
-    ref_y = np.load("data/star_tracker_false_stars_triple_ref_y.npy")
-    mod0_x = np.load("data/star_tracker_false_stars_triple_mod0_x.npy")
-    mod0_y = np.load("data/star_tracker_false_stars_triple_mod0_y.npy")
-    mod1_x = np.load("data/star_tracker_false_stars_triple_mod1_x.npy")
-    mod1_y = np.load("data/star_tracker_false_stars_triple_mod1_y.npy")
-    
-    plt.plot(ref_x, ref_y,  label="Reference")
-    plt.plot(mod0_x, mod0_y, label="Modified (e=0.5mrad)")
-    plt.plot(mod1_x, mod1_y, label="Modified (e=1.0mrad)")
-    plt.xlabel("Number of false stars")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.grid()
-    plt.legend()
-    plt.savefig("data/star_tracker_false_stars_triple.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_focus_std_triple_run():
-    start  = 0    # meters
-    end    = 2e-3 # meters
-    ntests = 100
-
-    test_reference = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_reference.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test_reference.run(test_reference.focus_std, start, end, ntests)
-    np.save("data/star_tracker_focus_std_triple_ref_x.npy", test_reference.x)
-    np.save("data/star_tracker_focus_std_triple_ref_y.npy", test_reference.y)
-
-    test_modified_0 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_modified_0.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 0.5e-3) )
-    test_modified_0.run(test_modified_0.focus_std, start, end, ntests)
-    np.save("data/star_tracker_focus_std_triple_mod0_x.npy", test_modified_0.x)
-    np.save("data/star_tracker_focus_std_triple_mod0_y.npy", test_modified_0.y)
-
-    test_modified_1 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_modified_1.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 1.0e-3) )
-    test_modified_1.run(test_modified_1.focus_std, start, end, ntests)
-    np.save("data/star_tracker_focus_std_triple_mod1_x.npy", test_modified_1.x)
-    np.save("data/star_tracker_focus_std_triple_mod1_y.npy", test_modified_1.y)
-
-def star_tracker_focus_std_triple_plot():
-    ref_x = np.load("data/star_tracker_focus_std_triple_ref_x.npy")
-    ref_y = np.load("data/star_tracker_focus_std_triple_ref_y.npy")
-    mod0_x = np.load("data/star_tracker_focus_std_triple_mod0_x.npy")
-    mod0_y = np.load("data/star_tracker_focus_std_triple_mod0_y.npy")
-    mod1_x = np.load("data/star_tracker_focus_std_triple_mod1_x.npy")
-    mod1_y = np.load("data/star_tracker_focus_std_triple_mod1_y.npy")
-
-    plt.plot(ref_x  * 1e3 ,ref_y,  label="Reference")
-    plt.plot(mod0_x * 1e3 ,mod0_y, label="Modified (e=0.5mrad)")
-    plt.plot(mod1_x * 1e3 ,mod1_y, label="Modified (e=1.0mrad)")
-    plt.xlabel("Additive Gaussian noise on focal length (mm)")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.legend()
-    plt.grid()
-    plt.savefig("data/star_tracker_focus_std_triple.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_focus_dc_triple_run():
-    start  = -2e-3 # meters
-    end    = +2e-3 # meters
-    ntests = 100
-
-    test_reference = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv", op_resolution = (1600,1200)) )
-    test_reference.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test_reference.run(test_reference.focus_dc, start, end, ntests)
-    np.save("data/star_tracker_focus_dc_triple_ref_x.npy", test_reference.x)
-    np.save("data/star_tracker_focus_dc_triple_ref_y.npy", test_reference.y)
-
-    test_modified_0 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_modified_0.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 0.5e-3) )
-    test_modified_0.run(test_modified_0.focus_dc, start, end, ntests)
-    np.save("data/star_tracker_focus_dc_triple_mod0_x.npy", test_modified_0.x)
-    np.save("data/star_tracker_focus_dc_triple_mod0_y.npy", test_modified_0.y)
-
-    test_modified_1 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_modified_1.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY", gp_nn_error_angle = 1.0e-3) )
-    test_modified_1.run(test_modified_1.focus_dc, start, end, ntests)
-    np.save("data/star_tracker_focus_dc_triple_mod1_x.npy", test_modified_1.x)
-    np.save("data/star_tracker_focus_dc_triple_mod1_y.npy", test_modified_1.y)
-
-def star_tracker_focus_dc_triple_plot():
-    ref_x = np.load("data/star_tracker_focus_dc_triple_ref_x.npy")
-    ref_y = np.load("data/star_tracker_focus_dc_triple_ref_y.npy")
-    mod0_x = np.load("data/star_tracker_focus_dc_triple_mod0_x.npy")
-    mod0_y = np.load("data/star_tracker_focus_dc_triple_mod0_y.npy")
-    mod1_x = np.load("data/star_tracker_focus_dc_triple_mod1_x.npy")
-    mod1_y = np.load("data/star_tracker_focus_dc_triple_mod1_y.npy")
-
-    plt.plot(ref_x  * 1e3 ,ref_y,  label="Reference")
-    plt.plot(mod0_x * 1e3 ,mod0_y, label="Modified (e=0.5mrad)")
-    plt.plot(mod1_x * 1e3 ,mod1_y, label="Modified (e=1.0mrad)")
-    plt.xlabel("Change in focal length (mm)")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.legend()
-    plt.grid()
-    plt.savefig("data/star_tracker_focus_dc_triple.pdf")
-    plt.show()
-
-# ==========================================================================
-
-def star_tracker_grid_size_triple_run():
-    start  = 1
-    end    = 64
-    ntests = end - start + 1
-
-    test_reference = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_reference.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "REFERENCE") )
-    test_reference.run(test_reference.grid_size, start, end, ntests)
-    np.save("data/star_tracker_grid_size_triple_ref_x.npy", test_reference.x)
-    np.save("data/star_tracker_grid_size_triple_ref_y.npy", test_reference.y)
-
-    test_modified_0 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_modified_0.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY_INDEX", gp_nn_error_angle = 0.5e-3) )
-    test_modified_0.run(test_modified_0.grid_size, start, end, ntests)
-    np.save("data/star_tracker_grid_size_triple_mod0_x.npy", test_modified_0.x)
-    np.save("data/star_tracker_grid_size_triple_mod0_y.npy", test_modified_0.y)
-
-    test_modified_1 = TestStarTracker( ConfigCommon(test_name = "STAR_TRACKER", output_filename = "test_star_tracker.csv") )
-    test_modified_1.dut( ConfigDut(dut_name= "STAR_TRACKER", gp_alg_variation = "BINARY_INDEX", gp_nn_error_angle = 1.0e-3) )
-    test_modified_1.run(test_modified_1.grid_size, start, end, ntests)
-    np.save("data/star_tracker_grid_size_triple_mod1_x.npy", test_modified_1.x)
-    np.save("data/star_tracker_grid_size_triple_mod1_y.npy", test_modified_1.y)
-
-def star_tracker_grid_size_triple_plot():
-    ref_x = np.load("data/star_tracker_grid_size_triple_ref_x.npy")
-    ref_y = np.load("data/star_tracker_grid_size_triple_ref_y.npy")
-    mod0_x = np.load("data/star_tracker_grid_size_triple_mod0_x.npy")
-    mod0_y = np.load("data/star_tracker_grid_size_triple_mod0_y.npy")
-    mod1_x = np.load("data/star_tracker_grid_size_triple_mod1_x.npy")
-    mod1_y = np.load("data/star_tracker_grid_size_triple_mod1_y.npy")
-   
-    plt.plot(ref_x, ref_y,  label="Reference")
-    plt.plot(mod0_x, mod0_y, label="Modified (e=0.5mrad)")
-    plt.plot(mod1_x, mod1_y, label="Modified (e=1.0mrad)")
-    plt.xlabel("Grid size g")
-    plt.ylabel("Ratio of correct attitude determination")
-    plt.legend()
-    plt.grid()
-    plt.savefig("data/star_tracker_grid_size_triple.pdf")
-    plt.show()
+class TestStarTrackerFocusDC(MultipleTests):
+    def parameters(self):
+        self.common.test_identifier = "Star Tracker Focus DC"
+        self.common.start = -2 # mm
+        self.common.end   = +2 # mm
+        self.common.steps = 100
+        self.common.x_axis_name = "Change in focal length (mm)"
+        self.common.y_axis_name = "Ratio of correct attitude determination"
+    def delta_update(self,value):
+        self.common.sp_focus_dc = value
+        self.common.generate_yml("config/common.yml")
+
+class TestStarTrackerRuntime(SingleTest):
+    def parameters(self):
+        # self.common.test_identifier = "Star Tracker Runtime"
+        self.common.n_tests = 10000
+    def plot(self):
+        print("{:>20} {:>8} {:>8} {:>8} {:>8}".format("DUT","C", "C_noth", "S_ID", "Att"))
+        for dut in self.dut_list:
+            directory_name = "data/" + self.common.test_identifier
+            filename_base = directory_name + "/" + dut.dut_identifier
+            data = np.load(filename_base + ".npy")
+            acc = data.sum(0)
+            print("{:>20} {:>8.4f} {:>8.4f} {:>8.4f} {:>8.4f}".format(dut.dut_identifier, acc[0], acc[1], acc[2], acc[3]))
 
 # ==========================================================================
 
@@ -531,3 +211,5 @@ plt.rcParams['axes.labelsize'] = 'x-large'
 plt.rcParams['xtick.labelsize'] = 'large'
 plt.rcParams['ytick.labelsize'] = 'large'
 plt.rcParams['figure.autolayout'] = True
+
+# ==========================================================================

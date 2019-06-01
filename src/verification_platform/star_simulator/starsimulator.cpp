@@ -317,13 +317,29 @@ vec<double,3> StarSimulator::random_unit_vector ()
     return output;
 }
 
+double StarSimulator::random_angle ()
+{// Generates an angle between -π and π
+    uniform_real_distribution<double> distribution(-M_PI,M_PI);
+    return distribution(rng_quaternion);
+}
+
 quat<double> StarSimulator::random_quaternion()
 {// Generates a random rotation quaternion.
-    vec<double,3> a = random_unit_vector();
-    vec<double,3> b = random_unit_vector();
-    quat<double> output = rot_quat(a,b);
-    return output;
+    double angle = random_angle();
+    vec<double,3> v = random_unit_vector();
+    double a = cos(angle/2);
+    double b = sin(angle/2);
+    quat<double> random_q = {a, b*v.a[0], b*v.a[1], b*v.a[2]};
+    return random_q;
 }
+
+// quat<double> StarSimulator::random_quaternion()
+// {// Generates a random rotation quaternion.
+//     vec<double,3> a = random_unit_vector();
+//     vec<double,3> b = random_unit_vector();
+//     quat<double> output = rot_quat(a,b);
+//     return output;
+// }
 
 double StarSimulator::awgn(double standard_deviation)
 {// Additive white Gaussian noise.

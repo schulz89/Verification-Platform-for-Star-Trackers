@@ -163,7 +163,7 @@ void SBStarId::compare_data (Sky sky_in, Sky sky_out)
     correct = 0;
     identified = sky_out.stars.size();
     total = sky_in.stars.size();
-    double time = 0;
+    time = 0;
     if(sky_out.time.size()){ // Collects the correct time for Star ID
         if(sky_out.time.size() == 1)
             time = sky_out.time[0];

@@ -44,6 +44,9 @@ void test_star_tracker::report_phase(uvm_phase& phase ){
     cout << "centroid time, no threshold (s) = " << scoreboard->acc_centr.time_c_acc << endl;
     cout << "star id time (s)                = " << scoreboard->acc_starid.time_acc<< endl;
     cout << "attitude determination time (s) = " << scoreboard->acc_att.time_acc << endl;
+    cout << "correct attitude ratio          = " << (double)scoreboard->acc_att.correct_acc/scoreboard->acc_att.total_acc << endl;
+    cout << "rejected attitude ratio         = " << (double)scoreboard->acc_att.rejected_acc/scoreboard->acc_att.total_acc << endl;
+    cout << "wrong attitude ratio            = " << (double)scoreboard->acc_att.wrong_acc/scoreboard->acc_att.total_acc << endl;
     cout << endl;
 
 //    scoreboard->acc_centr.print();

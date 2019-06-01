@@ -64,6 +64,7 @@ private:
     void classifier(std::vector<Candidate> &candidates, std::vector<std_str::Star> stars);
     cv::Point3d cross(cv::Point3d a, cv::Point3d b);
     double vector_angle(cv::Point3d a, cv::Point3d b);
+    void filter(std::vector<Candidate> & cluster, double fov);
     void cluster (std::vector<std::vector<Candidate> > &output, std::vector<Candidate> &candidates, double v_fov);
     std::vector<Candidate>* verify (std::vector<std::vector<Candidate> > &clustered);
     double fov(double size, double focus);

@@ -130,8 +130,10 @@ Sky StarIdentification::identifyStars(Sky csky)
     vector<Candidate> candidates;
     classifier(candidates,csky.stars);
     vector<vector<Candidate> > clustered;
-    cluster(clustered,candidates,fov(cblas_dnrm2(2,&config.optical_parameters.sensor_size.x,1),config.optical_parameters.focus));
+    double fov_2 = fov(cblas_dnrm2(2, &config.optical_parameters.sensor_size.x, 1), config.optical_parameters.focus);
+    cluster(clustered, candidates, fov_2);
     vector<Candidate>* verified = verify(clustered);
+    if(verified) filter(*verified,fov_2/2);
     vector<Star> identified = format_output(verified);
     csky.stars = identified;
     return csky;
@@ -501,7 +503,7 @@ double StarIdentification::vector_angle(cv::Point3d a, cv::Point3d b)
 }
 
 void StarIdentification::cluster(vector<vector<Candidate> > &output, vector<Candidate> &candidates, double v_fov)
-{// Cluster together the stars within the same (vertical) Field of View.
+{// Cluster together the stars within the same Field of View.
     vector<Candidate> rejected = candidates;
     while(rejected.size()){
         vector<Candidate> accepted;
@@ -517,6 +519,27 @@ void StarIdentification::cluster(vector<vector<Candidate> > &output, vector<Cand
                 rejected.push_back(tmp.at(i));
         }
         output.push_back(accepted);
+    }
+}
+
+void StarIdentification::filter(vector<Candidate> & cluster, double fov)
+{// Second pass filter for the actual (smaller) FOV.
+    Point3d center = {0.0,0.0,0.0};
+    uint i;
+    for(i=0; i<cluster.size(); i++){
+        cv::Point3d* value = (cv::Point3d*)&ref_cat[cluster.at(i).pos_id][2];
+        center.x += value->x;
+        center.y += value->y;
+        center.z += value->z;
+    }
+    center.x /= i;
+    center.y /= i;
+    center.z /= i;
+    for(i=0; i<cluster.size(); i++){
+        cv::Point3d* value = (cv::Point3d*)&ref_cat[cluster.at(i).pos_id][2];
+        if(vector_angle(*value, center) > fov){
+            cluster.erase(cluster.begin() + i);
+        }
     }
 }
 

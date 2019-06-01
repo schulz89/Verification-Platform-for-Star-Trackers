@@ -33,6 +33,9 @@ scoreboard_star_tracker::scoreboard_star_tracker( uvm_component_name name )
          << "\t" << "att_rejected"
          << "\t" << "att_wrong"
          << "\t" << "att_error"
+         << "\t" << "starid_total"
+         << "\t" << "starid_identified"
+         << "\t" << "starid_correct"
          << endl;
 }
 
@@ -43,14 +46,17 @@ void scoreboard_star_tracker::compare_data ()
     acc_att.compare_data(sky_in, sky_out);
 
     *ofs << sky_out.time[0]
-            << "\t" << sky_out.time[1]
-            << "\t" << sky_out.time[2]
-            << "\t" << sky_out.time[3]
-            << "\t" << acc_att.correct
-            << "\t" << acc_att.rejected
-            << "\t" << acc_att.wrong
-            << "\t" << acc_att.error
-            << endl;
+         << "\t" << sky_out.time[1]
+         << "\t" << sky_out.time[2]
+         << "\t" << sky_out.time[3]
+         << "\t" << acc_att.correct
+         << "\t" << acc_att.rejected
+         << "\t" << acc_att.wrong
+         << "\t" << acc_att.error
+         << "\t" << acc_starid.total
+         << "\t" << acc_starid.identified
+         << "\t" << acc_starid.correct
+         << endl;
 
 //     cout << sky_in.q.r << "\t"
 //          << sky_in.q.v[0] << "\t"

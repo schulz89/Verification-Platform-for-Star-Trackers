@@ -13,8 +13,11 @@
 # limitations under the License.
 
 BUILD_DIR=bin
+CXX = "ccache g++"
+# CXX = "ccache clang++"
+
 CXXFLAGS = "-pipe -Wall -W -fopenmp -O2"
-#CXXFLAGS = "-pipe -Wall -W -g"
+# CXXFLAGS = "-pipe -Wall -W -g"
 
 $(shell   mkdir -p $(BUILD_DIR))
 
