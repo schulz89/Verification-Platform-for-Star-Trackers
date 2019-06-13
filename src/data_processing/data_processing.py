@@ -103,11 +103,14 @@ class MultipleTests(SingleTest): # Base class
         np.save(filename_base + "_y.npy", self.y)
     def plot(self):
         directory_name = "data/" + self.common.test_identifier
+        linestyles = ['-', '--', '-.', ':']
+        i = 0
         for dut in self.dut_list:
             filename_base = directory_name + "/" + dut.dut_identifier
             x = np.load(filename_base + "_x.npy")
             y = np.load(filename_base + "_y.npy")
-            plt.plot(x, y, label=dut.dut_identifier)
+            plt.plot(x, y, label=dut.dut_identifier, linestyle=linestyles[i%len(linestyles)])
+            i = i + 1
         plt.xlabel(self.common.x_axis_name)
         plt.ylabel(self.common.y_axis_name)
         plt.grid()
@@ -202,6 +205,7 @@ class TestStarTrackerRuntime(SingleTest):
 
 # ==========================================================================
 
+plt.rcParams['lines.linewidth'] = 2
 plt.rcParams["font.family"] = "STIXGeneral"
 plt.rcParams["mathtext.fontset"] = "stix"
 plt.rcParams["font.size"] = 12
