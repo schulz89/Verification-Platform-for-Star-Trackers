@@ -20,7 +20,7 @@ sys.path.append("src/data_processing")
 from src.data_processing.data_processing import *
 
 def tests_batch():
-    config_common = ConfigCommon()
+    config_common_list = [ConfigCommon(), ConfigCommon(), ConfigCommon()]
     config_dut_list = [ConfigDut(gp_alg_variation = "REFERENCE", dut_identifier="Reference"),
                        ConfigDut(gp_alg_variation = "BINARY", gp_nn_error_angle=0.0005, dut_identifier="Modified e=0.5mrad"),
                        ConfigDut(gp_alg_variation = "BINARY", gp_nn_error_angle=0.0010, dut_identifier="Modified e=1.0mrad")]
@@ -31,6 +31,15 @@ def tests_batch():
                  TestStarTrackerGridSize,
                  TestStarTrackerFocusDC]
     for test in test_list:
-        test(config_common, config_dut_list)
+        test(config_common_list, config_dut_list)
 
-tests_batch()
+def repr():
+    config_common_list = [ConfigCommon(op_vertical_fov = 8, op_resolution = (512, 512), op_max_mag = 7.5),
+                          ConfigCommon(op_vertical_fov = 12, op_resolution = (1024, 1024), op_max_mag = 6.0),
+                          ConfigCommon(op_vertical_fov = 8, op_resolution = (640, 640), op_max_mag = 6.5)]
+    config_dut_list = [ConfigDut(gp_alg_variation = "REFERENCE", dut_identifier="Padgett et al. 1997", gp_g = 40),
+                       ConfigDut(gp_alg_variation = "REFERENCE", dut_identifier="Zhang et al. 2008", gp_g = 40),
+                       ConfigDut(gp_alg_variation = "REFERENCE", dut_identifier="Na et al. 2009", gp_g = 40)]
+    TestStarTrackerPositionRPR(config_common_list, config_dut_list)
+
+repr()
