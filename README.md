@@ -1,11 +1,11 @@
 # Verification Platform for Star Trackers
 
 This is a verification platform for testing star tracker algorithms, based on UVM-SystemC.  
-All the code is under development and should be treated as alpha version.
+The code is currently under development.
 
 ## Compiling and running and running
 
-Compiling the project with the supplied makefile was only tested on Fedora 29 and 30, with the versions of the dependencies shown in the list of dependencies below.
+Compiling the project with the supplied makefile was tested on Fedora 29 and 30, with the versions of the dependencies shown in the list of dependencies below.
 
 Compiling the platform can be done with:
 
