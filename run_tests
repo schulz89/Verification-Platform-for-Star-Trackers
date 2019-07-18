@@ -42,4 +42,4 @@ def repr():
                        ConfigDut(gp_alg_variation = "REFERENCE", dut_identifier="Na et al. 2009", gp_g = 40)]
     TestStarTrackerPositionRPR(config_common_list, config_dut_list)
 
-repr()
+tests_batch()
