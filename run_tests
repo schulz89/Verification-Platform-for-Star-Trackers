@@ -43,3 +43,4 @@ def repr():
     TestStarTrackerPositionRPR(config_common_list, config_dut_list)
 
 tests_batch()
+repr()

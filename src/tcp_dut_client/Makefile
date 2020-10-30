@@ -21,7 +21,7 @@ ifndef BUILD_DIR
 	BUILD_DIR=.
 endif
 
-LDFLAGS =`pkg-config --libs opencv atlas blas`
+LDFLAGS =`pkg-config --libs opencv lapack blas`
 
 $(name): $(obj)
 	$(CXX) -o $(BUILD_DIR)/$@ $^ $(LDFLAGS)

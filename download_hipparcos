@@ -16,7 +16,6 @@
 
 mkdir -p hipparcos
 cd hipparcos
-wget ftp://cdsarc.u-strasbg.fr/pub/cats/I/239/hip_main.dat.gz
+wget ftp://cdsarc.u-strasbg.fr/pub/cats/I/239/hip_main.dat
 wget ftp://cdsarc.u-strasbg.fr/pub/cats/I/311/hip2.dat.gz
-gunzip hip_main.dat.gz
 gunzip hip2.dat.gz

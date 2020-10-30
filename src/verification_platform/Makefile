@@ -23,7 +23,7 @@ endif
 
 override CXXFLAGS += -I$(CURDIR)
 
-LDFLAGS =`pkg-config --libs opencv atlas blas` -lsystemc -luvm-systemc
+LDFLAGS =`pkg-config --libs opencv lapack blas` -lsystemc -luvm-systemc
 
 $(name): $(obj)
 	$(CXX) $(CXXFLAGS) -o $(BUILD_DIR)/$@ $^ $(LDFLAGS) $(inc)

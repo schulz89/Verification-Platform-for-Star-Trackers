@@ -66,6 +66,7 @@ class SingleTest:  # Base class
             directory_name = "data/" + common.test_identifier
             filename_base = directory_name + "/" + dut.dut_identifier
             data = np.load(filename_base + ".npy")
+            np.savetxt(filename_base + ".csv", data, delimiter=',')
             ratio = data[:,0] / data[:,2]
             plt.hist(ratio, bins = 20)
             # plt.hist(ratio, bins = 20, facecolor = "dimgrey")
@@ -109,7 +110,9 @@ class MultipleTests(SingleTest): # Base class
         for common, dut in zip(self.common_list, self.dut_list):
             filename_base = directory_name + "/" + dut.dut_identifier
             x = np.load(filename_base + "_x.npy")
+            np.savetxt(filename_base + "_x.csv", x, delimiter=',')
             y = np.load(filename_base + "_y.npy")
+            np.savetxt(filename_base + "_y.csv", y, delimiter=',')
             plt.plot(x, y, label=dut.dut_identifier, linestyle=linestyles[i%len(linestyles)])
             i = i + 1
         plt.xlabel(common.x_axis_name)
@@ -160,7 +163,9 @@ class TestStarTrackerPositionRPR(MultipleTests):
         for common, dut in zip(self.common_list, self.dut_list):
             filename_base = directory_name + "/" + dut.dut_identifier
             x = np.load(filename_base + "_x.npy")
+            np.savetxt(filename_base + "_x.csv", x, delimiter=',')
             y = np.load(filename_base + "_y.npy")
+            np.savetxt(filename_base + "_y.csv", y, delimiter=',')
             plt.plot(x, y, label=dut.dut_identifier, linestyle=linestyles[i%len(linestyles)])
             i = i + 1
         plt.xlabel(common.x_axis_name)
@@ -234,6 +239,7 @@ class TestStarTrackerRuntime(SingleTest):
             directory_name = "data/" + self.common.test_identifier
             filename_base = directory_name + "/" + dut.dut_identifier
             data = np.load(filename_base + ".npy")
+            np.savetxt(filename_base + ".csv", data, delimiter=',')
             acc = data.sum(0)
             print("{:>20} {:>8.4f} {:>8.4f} {:>8.4f} {:>8.4f}".format(dut.dut_identifier, acc[0], acc[1], acc[2], acc[3]))
 
