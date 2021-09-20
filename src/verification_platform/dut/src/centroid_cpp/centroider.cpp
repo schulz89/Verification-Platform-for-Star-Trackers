@@ -129,7 +129,7 @@ Mat Centroider::PrintCentroids(Mat img, vector<Centroid> centroids, bool print_i
 
     if (img.channels() == 1)
     {
-        cvtColor(img_res, img_res, CV_GRAY2BGR);
+        cvtColor(img_res, img_res, COLOR_BGR2GRAY);
     }
 
     for(unsigned int i=0; i<centroids.size(); i++)

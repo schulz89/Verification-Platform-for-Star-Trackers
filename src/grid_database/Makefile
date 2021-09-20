@@ -21,10 +21,10 @@ ifndef BUILD_DIR
 	BUILD_DIR=.
 endif
 
-LDFLAGS = -lopencv_core
+LDFLAGS = "-lopencv_core"
 
 $(name): $(obj)
-	$(CXX) -o $(BUILD_DIR)/$@ $^ $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -o $(BUILD_DIR)/$@ $^ $(LDFLAGS) $(inc)
 
 .PHONY: clean
 clean:

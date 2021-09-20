@@ -16,10 +16,10 @@ BUILD_DIR=bin
 CXX = "ccache g++"
 # CXX = "ccache clang++"
 
-CXXFLAGS = "-pipe -Wall -W -fopenmp -O2"
+CXXFLAGS = "-pipe -Wall -W -fopenmp -O2 -I/usr/include/opencv4"
 # CXXFLAGS = "-pipe -Wall -W -g"
 
-$(shell   mkdir -p $(BUILD_DIR))
+$(shell mkdir -p $(BUILD_DIR))
 
 all: grid_database tcp_dut_client verification_platform
 	mkdir -p $(BUILD_DIR)

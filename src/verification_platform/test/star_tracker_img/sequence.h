@@ -54,7 +54,7 @@ public:
             std::string filename = std::to_string(num) + ".png";
             std::string ipath = input_path + "/" + filename;
             cv::Mat image_color = cv::imread(ipath);
-            cv::cvtColor(image_color, sky.image, CV_BGR2GRAY);
+            cv::cvtColor(image_color, sky.image, cv::COLOR_BGR2GRAY);
             // Done, doing a request...
             //this->req->sky_str = this->ssim.generate_sky(sky.q);
             //this->req->sky_str = this->ssim.generate_sky();
